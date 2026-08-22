@@ -1,0 +1,69 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Project {
+  id          String      @id @default(cuid())
+  name        String
+  color       String      // Cor hex, ex: #3b82f6
+  description String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @default(now()) @updatedAt
+  tasks       Task[]
+}
+
+model Column {
+  id          String   @id @default(cuid())
+  title       String
+  color       String   @default("#3b82f6") // Cor da coluna
+  order       Int      @default(0)
+  isFinal     Boolean  @default(false) // Se true, coluna de conclusão
+  tasks       Task[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+}
+
+model Task {
+  id           String      @id @default(cuid())
+  title        String
+  description  String?
+  status       String      @default("STANDBY")
+  order        Int         @default(0)
+  technologies String[]    @default([])
+  frontendTech String[]    @default([])
+  backendTech  String[]    @default([])
+  databaseTech String[]    @default([])
+  columnId     String?
+  column       Column?     @relation(fields: [columnId], references: [id], onDelete: SetNull)
+  projects     Project[]
+  timeEntries  TimeEntry[]
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+}
+
+model TimeEntry {
+  id              String    @id @default(cuid())
+  taskId          String
+  task            Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  startedAt       DateTime  @default(now())
+  endedAt         DateTime? // Se null, o timer está em andamento
+  durationSeconds Int       @default(0)
+  notes           String?
+  createdAt       DateTime  @default(now())
+}
+
+model User {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  name      String?
+  password  String
+  avatar    String?  @default("<>")
+  color     String?  @default("#3b82f6")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
