@@ -9,6 +9,9 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const CORS_ORIGIN = process.env.CORS_ORIGIN || "http://localhost:3000";
 
+// Habilita trust proxy para ambientes como Google Cloud Run / reverse proxies
+app.set("trust proxy", 1);
+
 // Middlewares essenciais
 app.use(
   cors({
