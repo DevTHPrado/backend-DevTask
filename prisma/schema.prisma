@@ -8,62 +8,72 @@ datasource db {
 }
 
 model Project {
-  id          String      @id @default(cuid())
-  name        String
-  color       String      // Cor hex, ex: #3b82f6
-  description String?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @default(now()) @updatedAt
-  tasks       Task[]
+  id          String      @id @default(cuid()) @map("id")
+  name        String      @map("nome")
+  color       String      @map("cor")
+  description String?     @map("descricao")
+  createdAt   DateTime    @default(now()) @map("criado_em")
+  updatedAt   DateTime    @default(now()) @updatedAt @map("atualizado_em")
+  tasks       Task[]      @relation("projetos_tarefas")
+
+  @@map("projetos")
 }
 
 model Column {
-  id          String   @id @default(cuid())
-  title       String
-  color       String   @default("#3b82f6") // Cor da coluna
-  order       Int      @default(0)
-  isFinal     Boolean  @default(false) // Se true, coluna de conclusão
+  id          String   @id @default(cuid()) @map("id")
+  title       String   @map("titulo")
+  color       String   @default("#3b82f6") @map("cor")
+  order       Int      @default(0) @map("ordem")
+  isFinal     Boolean  @default(false) @map("e_final")
   tasks       Task[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @default(now()) @updatedAt
+  createdAt   DateTime @default(now()) @map("criado_em")
+  updatedAt   DateTime @default(now()) @updatedAt @map("atualizado_em")
+
+  @@map("colunas")
 }
 
 model Task {
-  id           String      @id @default(cuid())
-  title        String
-  description  String?
-  status       String      @default("STANDBY")
-  order        Int         @default(0)
-  technologies String[]    @default([])
-  frontendTech String[]    @default([])
-  backendTech  String[]    @default([])
-  databaseTech String[]    @default([])
-  columnId     String?
+  id           String      @id @default(cuid()) @map("id")
+  title        String      @map("titulo")
+  description  String?     @map("descricao")
+  status       String      @default("STANDBY") @map("status")
+  order        Int         @default(0) @map("ordem")
+  technologies String[]    @default([]) @map("tecnologias")
+  frontendTech String[]    @default([]) @map("tecnologias_frontend")
+  backendTech  String[]    @default([]) @map("tecnologias_backend")
+  databaseTech String[]    @default([]) @map("tecnologias_banco")
+  columnId     String?     @map("coluna_id")
   column       Column?     @relation(fields: [columnId], references: [id], onDelete: SetNull)
-  projects     Project[]
+  projects     Project[]   @relation("projetos_tarefas")
   timeEntries  TimeEntry[]
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  createdAt    DateTime    @default(now()) @map("criado_em")
+  updatedAt    DateTime    @updatedAt @map("atualizado_em")
+
+  @@map("tarefas")
 }
 
 model TimeEntry {
-  id              String    @id @default(cuid())
-  taskId          String
+  id              String    @id @default(cuid()) @map("id")
+  taskId          String    @map("tarefa_id")
   task            Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  startedAt       DateTime  @default(now())
-  endedAt         DateTime? // Se null, o timer está em andamento
-  durationSeconds Int       @default(0)
-  notes           String?
-  createdAt       DateTime  @default(now())
+  startedAt       DateTime  @default(now()) @map("iniciado_em")
+  endedAt         DateTime? @map("finalizado_em")
+  durationSeconds Int       @default(0) @map("duracao_segundos")
+  notes           String?   @map("observacoes")
+  createdAt       DateTime  @default(now()) @map("criado_em")
+
+  @@map("apontamentos_horas")
 }
 
 model User {
-  id        String   @id @default(cuid())
-  username  String   @unique
-  name      String?
-  password  String
-  avatar    String?  @default("<>")
-  color     String?  @default("#3b82f6")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id        String   @id @default(cuid()) @map("id")
+  username  String   @unique @map("usuario")
+  name      String?  @map("nome")
+  password  String   @map("senha")
+  avatar    String?  @default("<>") @map("avatar")
+  color     String?  @default("#3b82f6") @map("cor")
+  createdAt DateTime @default(now()) @map("criado_em")
+  updatedAt DateTime @updatedAt @map("atualizado_em")
+
+  @@map("usuarios")
 }

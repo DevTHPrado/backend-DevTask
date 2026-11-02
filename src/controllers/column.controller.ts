@@ -9,9 +9,9 @@ import {
 export async function getColumns(_req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     let columns = await prisma.$queryRaw<any[]>`
-      SELECT id, title, color, "isFinal", "order", "createdAt", "updatedAt" 
-      FROM "Column" 
-      ORDER BY "order" ASC, "createdAt" ASC;
+      SELECT id, titulo AS title, cor AS color, e_final AS "isFinal", ordem AS "order", criado_em AS "createdAt", atualizado_em AS "updatedAt" 
+      FROM "colunas" 
+      ORDER BY "ordem" ASC, "criado_em" ASC;
     `;
 
     if (!columns || columns.length === 0) {
@@ -23,7 +23,7 @@ export async function getColumns(_req: Request, res: Response, next: NextFunctio
 
       for (const col of defaultCols) {
         await prisma.$executeRawUnsafe(
-          `INSERT INTO "Column" ("id", "title", "color", "order", "isFinal", "createdAt", "updatedAt")
+          `INSERT INTO "colunas" ("id", "titulo", "cor", "ordem", "e_final", "criado_em", "atualizado_em")
            VALUES ($1, $2, $3, $4, $5, NOW(), NOW()) ON CONFLICT ("id") DO NOTHING;`,
           col.id,
           col.title,
@@ -34,9 +34,9 @@ export async function getColumns(_req: Request, res: Response, next: NextFunctio
       }
 
       columns = await prisma.$queryRaw<any[]>`
-        SELECT id, title, color, "isFinal", "order", "createdAt", "updatedAt" 
-        FROM "Column" 
-        ORDER BY "order" ASC, "createdAt" ASC;
+        SELECT id, titulo AS title, cor AS color, e_final AS "isFinal", ordem AS "order", criado_em AS "createdAt", atualizado_em AS "updatedAt" 
+        FROM "colunas" 
+        ORDER BY "ordem" ASC, "criado_em" ASC;
       `;
     }
 
@@ -52,12 +52,12 @@ export async function createColumn(req: Request, res: Response, next: NextFuncti
     const colId = "col_" + Date.now();
 
     const maxOrderRows = await prisma.$queryRaw<Array<{ maxOrder: number | null }>>`
-      SELECT MAX("order") AS "maxOrder" FROM "Column";
+      SELECT MAX("ordem") AS "maxOrder" FROM "colunas";
     `;
     const newOrder = validated.order !== undefined ? validated.order : (maxOrderRows[0]?.maxOrder ?? -1) + 1;
 
     await prisma.$executeRawUnsafe(
-      `INSERT INTO "Column" ("id", "title", "color", "isFinal", "order", "createdAt", "updatedAt")
+      `INSERT INTO "colunas" ("id", "titulo", "cor", "e_final", "ordem", "criado_em", "atualizado_em")
        VALUES ($1, $2, $3, $4, $5, NOW(), NOW());`,
       colId,
       validated.title.trim(),
@@ -77,29 +77,29 @@ export async function updateColumn(req: Request, res: Response, next: NextFuncti
     const id = req.params.id || req.body.id;
     const validated = UpdateColumnSchema.parse({ ...req.body, id });
 
-    const updates: string[] = ['"updatedAt" = NOW()'];
+    const updates: string[] = ['"atualizado_em" = NOW()'];
     const values: any[] = [validated.id];
     let idx = 2;
 
     if (validated.title !== undefined) {
-      updates.push(`"title" = $${idx++}`);
+      updates.push(`"titulo" = $${idx++}`);
       values.push(validated.title.trim());
     }
     if (validated.color !== undefined) {
-      updates.push(`"color" = $${idx++}`);
+      updates.push(`"cor" = $${idx++}`);
       values.push(validated.color);
     }
     if (validated.isFinal !== undefined) {
-      updates.push(`"isFinal" = $${idx++}`);
+      updates.push(`"e_final" = $${idx++}`);
       values.push(validated.isFinal);
     }
     if (validated.order !== undefined) {
-      updates.push(`"order" = $${idx++}`);
+      updates.push(`"ordem" = $${idx++}`);
       values.push(validated.order);
     }
 
     await prisma.$executeRawUnsafe(
-      `UPDATE "Column" SET ${updates.join(", ")} WHERE "id" = $1;`,
+      `UPDATE "colunas" SET ${updates.join(", ")} WHERE "id" = $1;`,
       ...values
     );
 
@@ -119,19 +119,19 @@ export async function deleteColumn(req: Request, res: Response, next: NextFuncti
 
     const columnId = String(id);
     const otherCols = await prisma.$queryRaw<Array<{ id: string; title: string }>>`
-      SELECT id, title FROM "Column" WHERE id != ${columnId} ORDER BY "order" ASC LIMIT 1;
+      SELECT id, titulo AS title FROM "colunas" WHERE id != ${columnId} ORDER BY "ordem" ASC LIMIT 1;
     `;
 
     if (otherCols && otherCols.length > 0) {
       await prisma.$executeRawUnsafe(
-        `UPDATE "Task" SET "columnId" = $1, "status" = $2 WHERE "columnId" = $3;`,
+        `UPDATE "tarefas" SET "coluna_id" = $1, "status" = $2 WHERE "coluna_id" = $3;`,
         otherCols[0].id,
         otherCols[0].title,
         columnId
       );
     }
 
-    await prisma.$executeRawUnsafe(`DELETE FROM "Column" WHERE "id" = $1;`, columnId);
+    await prisma.$executeRawUnsafe(`DELETE FROM "colunas" WHERE "id" = $1;`, columnId);
 
     res.json({ success: true, data: null });
   } catch (error) {
@@ -145,7 +145,7 @@ export async function reorderColumns(req: Request, res: Response, next: NextFunc
 
     for (let i = 0; i < validated.columnIds.length; i++) {
       await prisma.$executeRawUnsafe(
-        `UPDATE "Column" SET "order" = $1, "updatedAt" = NOW() WHERE "id" = $2;`,
+        `UPDATE "colunas" SET "ordem" = $1, "atualizado_em" = NOW() WHERE "id" = $2;`,
         i,
         validated.columnIds[i]
       );

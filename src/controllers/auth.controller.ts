@@ -27,8 +27,9 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
     const { username, password } = parsed.data;
 
     const userRows = await prisma.$queryRaw<Array<{ id: string; username: string; password: string; name: string | null; avatar: string | null; color: string | null }>>`
-      SELECT id, username, password, name, avatar, color FROM "User" 
-      WHERE LOWER(username) = LOWER(${username.trim()}) 
+      SELECT id, usuario AS username, senha AS password, nome AS name, avatar, cor AS color 
+      FROM "usuarios" 
+      WHERE LOWER(usuario) = LOWER(${username.trim()}) 
       LIMIT 1;
     `;
 
@@ -86,7 +87,7 @@ export async function register(req: Request, res: Response, next: NextFunction):
     const normalizedUsername = username.toLowerCase().trim();
 
     const existingUsers = await prisma.$queryRaw<Array<{ id: string }>>`
-      SELECT id FROM "User" WHERE LOWER(username) = ${normalizedUsername} LIMIT 1;
+      SELECT id FROM "usuarios" WHERE LOWER(usuario) = ${normalizedUsername} LIMIT 1;
     `;
 
     if (existingUsers && existingUsers.length > 0) {
@@ -98,7 +99,7 @@ export async function register(req: Request, res: Response, next: NextFunction):
     const hashedPassword = hashPassword(password);
 
     await prisma.$executeRawUnsafe(
-      `INSERT INTO "User" ("id", "username", "name", "password", "avatar", "color", "createdAt", "updatedAt") 
+      `INSERT INTO "usuarios" ("id", "usuario", "nome", "senha", "avatar", "cor", "criado_em", "atualizado_em") 
        VALUES ($1, $2, $3, $4, '<>', '#3b82f6', NOW(), NOW());`,
       userId,
       normalizedUsername,
@@ -140,7 +141,7 @@ export async function getCurrentUser(req: AuthenticatedRequest, res: Response, n
     }
 
     const userRows = await prisma.$queryRaw<Array<{ id: string; username: string; name: string | null; avatar: string | null; color: string | null }>>`
-      SELECT id, username, name, avatar, color FROM "User" WHERE id = ${req.user.userId} LIMIT 1;
+      SELECT id, usuario AS username, nome AS name, avatar, cor AS color FROM "usuarios" WHERE id = ${req.user.userId} LIMIT 1;
     `;
 
     if (!userRows || userRows.length === 0) {
@@ -183,7 +184,7 @@ export async function updateProfile(req: AuthenticatedRequest, res: Response, ne
     const { name, avatar, color, currentPassword, newPassword } = parsed.data;
 
     const userRows = await prisma.$queryRaw<Array<{ id: string; username: string; password: string; name: string | null; avatar: string | null; color: string | null }>>`
-      SELECT id, username, password, name, avatar, color FROM "User" WHERE id = ${req.user.userId} LIMIT 1;
+      SELECT id, usuario AS username, senha AS password, nome AS name, avatar, cor AS color FROM "usuarios" WHERE id = ${req.user.userId} LIMIT 1;
     `;
 
     if (!userRows || userRows.length === 0) {
@@ -207,18 +208,18 @@ export async function updateProfile(req: AuthenticatedRequest, res: Response, ne
 
       const hashedNew = hashPassword(newPassword);
       await prisma.$executeRawUnsafe(
-        `UPDATE "User" SET "password" = $1, "updatedAt" = NOW() WHERE id = $2;`,
+        `UPDATE "usuarios" SET "senha" = $1, "atualizado_em" = NOW() WHERE id = $2;`,
         hashedNew,
         user.id
       );
     }
 
-    const updates: string[] = ['"updatedAt" = NOW()'];
+    const updates: string[] = ['"atualizado_em" = NOW()'];
     const values: any[] = [user.id];
     let paramIdx = 2;
 
     if (name !== undefined) {
-      updates.push(`"name" = $${paramIdx++}`);
+      updates.push(`"nome" = $${paramIdx++}`);
       values.push(name.trim() || user.username);
     }
 
@@ -228,12 +229,12 @@ export async function updateProfile(req: AuthenticatedRequest, res: Response, ne
     }
 
     if (color !== undefined) {
-      updates.push(`"color" = $${paramIdx++}`);
+      updates.push(`"cor" = $${paramIdx++}`);
       values.push(color.trim() || "#3b82f6");
     }
 
     await prisma.$executeRawUnsafe(
-      `UPDATE "User" SET ${updates.join(", ")} WHERE id = $1;`,
+      `UPDATE "usuarios" SET ${updates.join(", ")} WHERE id = $1;`,
       ...values
     );
 

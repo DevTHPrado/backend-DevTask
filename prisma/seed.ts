@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-import crypto from "crypto";
+import crypto from "node:crypto";
 
 const prisma = new PrismaClient();
 
@@ -10,21 +10,21 @@ function hashPassword(password: string): string {
 }
 
 async function main() {
-  console.log("🌱 Iniciando o seed de dados do Dev Task (Backend)...");
+  console.log("🌱 Iniciando o seed de dados do Dev Task (dev_task)...");
 
   // Limpa registros anteriores para garantir consistência usando executeRaw
-  await prisma.$executeRawUnsafe('DELETE FROM "_ProjectToTask";').catch(() => {});
-  await prisma.$executeRawUnsafe('DELETE FROM "TimeEntry";').catch(() => {});
-  await prisma.$executeRawUnsafe('DELETE FROM "Task";').catch(() => {});
-  await prisma.$executeRawUnsafe('DELETE FROM "Column";').catch(() => {});
-  await prisma.$executeRawUnsafe('DELETE FROM "Project";').catch(() => {});
-  await prisma.$executeRawUnsafe('DELETE FROM "User";').catch(() => {});
+  await prisma.$executeRawUnsafe('DELETE FROM "_projetos_tarefas";').catch(() => {});
+  await prisma.$executeRawUnsafe('DELETE FROM "apontamentos_horas";').catch(() => {});
+  await prisma.$executeRawUnsafe('DELETE FROM "tarefas";').catch(() => {});
+  await prisma.$executeRawUnsafe('DELETE FROM "colunas";').catch(() => {});
+  await prisma.$executeRawUnsafe('DELETE FROM "projetos";').catch(() => {});
+  await prisma.$executeRawUnsafe('DELETE FROM "usuarios";').catch(() => {});
 
   // 0. Criar Usuário padrão
   const devId = "usr_devthprado_" + Date.now();
 
   await prisma.$executeRawUnsafe(
-    `INSERT INTO "User" ("id", "username", "name", "password", "createdAt", "updatedAt") VALUES ($1, $2, $3, $4, NOW(), NOW()) ON CONFLICT ("username") DO NOTHING;`,
+    `INSERT INTO "usuarios" ("id", "usuario", "nome", "senha", "criado_em", "atualizado_em") VALUES ($1, $2, $3, $4, NOW(), NOW()) ON CONFLICT ("usuario") DO NOTHING;`,
     devId,
     "DevTHPrado",
     "DevTHPrado",
@@ -39,7 +39,7 @@ async function main() {
   const colFinalizedId = "col_finalized";
 
   await prisma.$executeRawUnsafe(
-    `INSERT INTO "Column" ("id", "title", "color", "order", "isFinal", "createdAt", "updatedAt") VALUES
+    `INSERT INTO "colunas" ("id", "titulo", "cor", "ordem", "e_final", "criado_em", "atualizado_em") VALUES
     ($1, 'Stand-by', '#f59e0b', 0, false, NOW(), NOW()),
     ($2, 'Em Andamento', '#3b82f6', 1, false, NOW(), NOW()),
     ($3, 'Finalizado', '#10b981', 2, true, NOW(), NOW())
@@ -57,7 +57,7 @@ async function main() {
   const p3Id = "proj_ui";
 
   await prisma.$executeRawUnsafe(
-    `INSERT INTO "Project" ("id", "name", "color", "description", "createdAt", "updatedAt") VALUES
+    `INSERT INTO "projetos" ("id", "nome", "cor", "descricao", "criado_em", "atualizado_em") VALUES
     ($1, 'Dev Task Core', '#3b82f6', 'Desenvolvimento do motor central de Kanban e Timer da aplicação.', NOW(), NOW()),
     ($2, 'API & Performance', '#10b981', 'Otimizações de queries PostgreSQL, Server Actions e caching do Next.js.', NOW(), NOW()),
     ($3, 'Design System & UI', '#8b5cf6', 'Componentes estilizados, glassmorphism e micro-interações.', NOW(), NOW())
@@ -78,7 +78,7 @@ async function main() {
   const t6Id = "task_t6";
 
   await prisma.$executeRawUnsafe(
-    `INSERT INTO "Task" ("id", "title", "description", "status", "order", "technologies", "columnId", "createdAt", "updatedAt") VALUES
+    `INSERT INTO "tarefas" ("id", "titulo", "descricao", "status", "ordem", "tecnologias", "coluna_id", "criado_em", "atualizado_em") VALUES
     ($1, 'Adicionar exportação de relatórios em CSV e PDF', 'Permitir ao usuário baixar o resumo do Timesheet em formato tabular para faturamento.', 'Stand-by', 0, ARRAY['TypeScript', 'Next.js', 'Node.js'], $7, NOW(), NOW()),
     ($2, 'Configurar atalhos de teclado (Space para play/stop)', 'Facilitar o início e término rápido de apontamento sem uso do mouse.', 'Stand-by', 1, ARRAY['React', 'TypeScript'], $7, NOW(), NOW()),
     ($3, 'Implementar Drag and Drop fluido entre colunas do Kanban', 'Uso do @hello-pangea/dnd com feedback otimista e sincronização atômica no banco.', 'Em Andamento', 0, ARRAY['React', 'Tailwind CSS'], $8, NOW(), NOW()),
@@ -99,7 +99,7 @@ async function main() {
 
   // Vincular múltiplos projetos às tarefas
   await prisma.$executeRawUnsafe(
-    `INSERT INTO "_ProjectToTask" ("A", "B") VALUES
+    `INSERT INTO "_projetos_tarefas" ("A", "B") VALUES
     ($1, $4), ($2, $4),
     ($3, $5),
     ($1, $6), ($3, $6),
@@ -119,44 +119,6 @@ async function main() {
   );
 
   console.log("✅ Tarefas e associações multi-projeto criadas.");
-
-  // 4. Criar Apontamentos de Horas (TimeEntries)
-  const now = new Date();
-  const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-  const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
-  const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-
-  await prisma.timeEntry.create({
-    data: {
-      taskId: t5Id,
-      startedAt: yesterday,
-      endedAt: new Date(yesterday.getTime() + 45 * 60 * 1000),
-      durationSeconds: 45 * 60,
-      notes: "Definição do schema Prisma com relações N:N e índices.",
-    },
-  });
-
-  await prisma.timeEntry.create({
-    data: {
-      taskId: t6Id,
-      startedAt: twoHoursAgo,
-      endedAt: oneHourAgo,
-      durationSeconds: 3600,
-      notes: "Desenvolvimento do layout com Tailwind CSS e Radix UI.",
-    },
-  });
-
-  await prisma.timeEntry.create({
-    data: {
-      taskId: t3Id,
-      startedAt: new Date(now.getTime() - 25 * 60 * 1000),
-      endedAt: new Date(now.getTime() - 5 * 60 * 1000),
-      durationSeconds: 20 * 60,
-      notes: "Ajuste de persistência e animação de confetti na coluna Finalizado.",
-    },
-  });
-
-  console.log("✅ Apontamentos de horas seedados com sucesso!");
 }
 
 main()

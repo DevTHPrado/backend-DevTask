@@ -21,19 +21,19 @@ export async function getProjects(_req: Request, res: Response, next: NextFuncti
     >`
       SELECT 
         p.id,
-        p.name,
-        p.color,
-        p.description,
-        p."createdAt",
-        p."updatedAt",
+        p.nome AS name,
+        p.cor AS color,
+        p.descricao AS description,
+        p.criado_em AS "createdAt",
+        p.atualizado_em AS "updatedAt",
         COUNT(DISTINCT pt."B")::int AS "tasksCount",
-        COALESCE(SUM(te."durationSeconds"), 0)::int AS "totalDurationSeconds"
-      FROM "Project" p
-      LEFT JOIN "_ProjectToTask" pt ON pt."A" = p.id
-      LEFT JOIN "Task" t ON t.id = pt."B"
-      LEFT JOIN "TimeEntry" te ON te."taskId" = t.id
+        COALESCE(SUM(te.duracao_segundos), 0)::int AS "totalDurationSeconds"
+      FROM "projetos" p
+      LEFT JOIN "_projetos_tarefas" pt ON pt."A" = p.id
+      LEFT JOIN "tarefas" t ON t.id = pt."B"
+      LEFT JOIN "apontamentos_horas" te ON te.tarefa_id = t.id
       GROUP BY p.id
-      ORDER BY p."createdAt" ASC;
+      ORDER BY p.criado_em ASC;
     `;
 
     const enrichedProjects = rawProjects.map((p) => ({
@@ -61,7 +61,7 @@ export async function createProject(req: Request, res: Response, next: NextFunct
     const projectId = "proj_" + Date.now();
 
     await prisma.$executeRawUnsafe(
-      `INSERT INTO "Project" ("id", "name", "color", "description", "createdAt", "updatedAt") 
+      `INSERT INTO "projetos" ("id", "nome", "cor", "descricao", "criado_em", "atualizado_em") 
        VALUES ($1, $2, $3, $4, NOW(), NOW());`,
       projectId,
       validated.name.trim(),
@@ -80,25 +80,25 @@ export async function updateProject(req: Request, res: Response, next: NextFunct
     const id = req.params.id || req.body.id;
     const validated = UpdateProjectSchema.parse({ ...req.body, id });
 
-    const updates: string[] = ['"updatedAt" = NOW()'];
+    const updates: string[] = ['"atualizado_em" = NOW()'];
     const values: any[] = [validated.id];
     let idx = 2;
 
     if (validated.name !== undefined) {
-      updates.push(`"name" = $${idx++}`);
+      updates.push(`"nome" = $${idx++}`);
       values.push(validated.name.trim());
     }
     if (validated.color !== undefined) {
-      updates.push(`"color" = $${idx++}`);
+      updates.push(`"cor" = $${idx++}`);
       values.push(validated.color);
     }
     if (validated.description !== undefined) {
-      updates.push(`"description" = $${idx++}`);
+      updates.push(`"descricao" = $${idx++}`);
       values.push(validated.description ? validated.description.trim() : null);
     }
 
     await prisma.$executeRawUnsafe(
-      `UPDATE "Project" SET ${updates.join(", ")} WHERE "id" = $1;`,
+      `UPDATE "projetos" SET ${updates.join(", ")} WHERE "id" = $1;`,
       ...values
     );
 
@@ -117,8 +117,8 @@ export async function deleteProject(req: Request, res: Response, next: NextFunct
     }
 
     const projectId = String(id);
-    await prisma.$executeRawUnsafe(`DELETE FROM "_ProjectToTask" WHERE "A" = $1;`, projectId);
-    await prisma.$executeRawUnsafe(`DELETE FROM "Project" WHERE "id" = $1;`, projectId);
+    await prisma.$executeRawUnsafe(`DELETE FROM "_projetos_tarefas" WHERE "A" = $1;`, projectId);
+    await prisma.$executeRawUnsafe(`DELETE FROM "projetos" WHERE "id" = $1;`, projectId);
 
     res.json({ success: true, data: null });
   } catch (error) {

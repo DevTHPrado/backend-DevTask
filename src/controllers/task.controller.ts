@@ -15,53 +15,53 @@ export async function getTasks(req: Request, res: Response, next: NextFunction):
       tasks = await prisma.$queryRaw<any[]>`
         SELECT 
           t.id,
-          t.title,
-          t.description,
+          t.titulo AS title,
+          t.descricao AS description,
           t.status,
-          t.order,
-          t."technologies",
-          t."frontendTech",
-          t."backendTech",
-          t."databaseTech",
-          t."columnId",
-          t."createdAt",
-          t."updatedAt",
-          COALESCE(SUM(te."durationSeconds"), 0)::int AS "totalDurationSeconds"
-        FROM "Task" t
-        JOIN "_ProjectToTask" pt ON pt."B" = t.id AND pt."A" = ${projectId}
-        LEFT JOIN "TimeEntry" te ON te."taskId" = t.id
+          t.ordem AS "order",
+          t.tecnologias AS "technologies",
+          t.tecnologias_frontend AS "frontendTech",
+          t.tecnologias_backend AS "backendTech",
+          t.tecnologias_banco AS "databaseTech",
+          t.coluna_id AS "columnId",
+          t.criado_em AS "createdAt",
+          t.atualizado_em AS "updatedAt",
+          COALESCE(SUM(te.duracao_segundos), 0)::int AS "totalDurationSeconds"
+        FROM "tarefas" t
+        JOIN "_projetos_tarefas" pt ON pt."B" = t.id AND pt."A" = ${projectId}
+        LEFT JOIN "apontamentos_horas" te ON te.tarefa_id = t.id
         GROUP BY t.id
-        ORDER BY t.order ASC, t."createdAt" DESC;
+        ORDER BY t.ordem ASC, t.criado_em DESC;
       `;
     } else {
       tasks = await prisma.$queryRaw<any[]>`
         SELECT 
           t.id,
-          t.title,
-          t.description,
+          t.titulo AS title,
+          t.descricao AS description,
           t.status,
-          t.order,
-          t."technologies",
-          t."frontendTech",
-          t."backendTech",
-          t."databaseTech",
-          t."columnId",
-          t."createdAt",
-          t."updatedAt",
-          COALESCE(SUM(te."durationSeconds"), 0)::int AS "totalDurationSeconds"
-        FROM "Task" t
-        LEFT JOIN "TimeEntry" te ON te."taskId" = t.id
+          t.ordem AS "order",
+          t.tecnologias AS "technologies",
+          t.tecnologias_frontend AS "frontendTech",
+          t.tecnologias_backend AS "backendTech",
+          t.tecnologias_banco AS "databaseTech",
+          t.coluna_id AS "columnId",
+          t.criado_em AS "createdAt",
+          t.atualizado_em AS "updatedAt",
+          COALESCE(SUM(te.duracao_segundos), 0)::int AS "totalDurationSeconds"
+        FROM "tarefas" t
+        LEFT JOIN "apontamentos_horas" te ON te.tarefa_id = t.id
         GROUP BY t.id
-        ORDER BY t.order ASC, t."createdAt" DESC;
+        ORDER BY t.ordem ASC, t.criado_em DESC;
       `;
     }
 
     const taskProjects = await prisma.$queryRaw<
       Array<{ taskId: string; id: string; name: string; color: string; description: string | null }>
     >`
-      SELECT pt."B" AS "taskId", p.id, p.name, p.color, p.description
-      FROM "Project" p
-      JOIN "_ProjectToTask" pt ON pt."A" = p.id;
+      SELECT pt."B" AS "taskId", p.id, p.nome AS name, p.cor AS color, p.descricao AS description
+      FROM "projetos" p
+      JOIN "_projetos_tarefas" pt ON pt."A" = p.id;
     `;
 
     const projectsByTaskId: Record<string, any[]> = {};
@@ -99,7 +99,7 @@ export async function createTask(req: Request, res: Response, next: NextFunction
     const taskId = "task_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7);
 
     const maxOrderRows = await prisma.$queryRaw<Array<{ maxOrder: number | null }>>`
-      SELECT MAX("order") AS "maxOrder" FROM "Task";
+      SELECT MAX("ordem") AS "maxOrder" FROM "tarefas";
     `;
 
     const newOrder = (maxOrderRows[0]?.maxOrder ?? -1) + 1;
@@ -112,7 +112,7 @@ export async function createTask(req: Request, res: Response, next: NextFunction
     );
 
     await prisma.$executeRawUnsafe(
-      `INSERT INTO "Task" ("id", "title", "description", "status", "technologies", "frontendTech", "backendTech", "databaseTech", "columnId", "order", "createdAt", "updatedAt") 
+      `INSERT INTO "tarefas" ("id", "titulo", "descricao", "status", "tecnologias", "tecnologias_frontend", "tecnologias_backend", "tecnologias_banco", "coluna_id", "ordem", "criado_em", "atualizado_em") 
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW());`,
       taskId,
       validated.title.trim(),
@@ -128,7 +128,7 @@ export async function createTask(req: Request, res: Response, next: NextFunction
 
     for (const pId of validated.projectIds) {
       await prisma.$executeRawUnsafe(
-        `INSERT INTO "_ProjectToTask" ("A", "B") VALUES ($1, $2) ON CONFLICT DO NOTHING;`,
+        `INSERT INTO "_projetos_tarefas" ("A", "B") VALUES ($1, $2) ON CONFLICT DO NOTHING;`,
         pId,
         taskId
       );
@@ -145,16 +145,16 @@ export async function updateTask(req: Request, res: Response, next: NextFunction
     const id = req.params.id || req.body.id;
     const validated = UpdateTaskSchema.parse({ ...req.body, id });
 
-    const updates: string[] = ['"updatedAt" = NOW()'];
+    const updates: string[] = ['"atualizado_em" = NOW()'];
     const values: any[] = [validated.id];
     let idx = 2;
 
     if (validated.title !== undefined) {
-      updates.push(`"title" = $${idx++}`);
+      updates.push(`"titulo" = $${idx++}`);
       values.push(validated.title.trim());
     }
     if (validated.description !== undefined) {
-      updates.push(`"description" = $${idx++}`);
+      updates.push(`"descricao" = $${idx++}`);
       values.push(validated.description ? validated.description.trim() : null);
     }
     if (validated.status !== undefined) {
@@ -162,15 +162,15 @@ export async function updateTask(req: Request, res: Response, next: NextFunction
       values.push(validated.status);
     }
     if (validated.frontendTech !== undefined) {
-      updates.push(`"frontendTech" = $${idx++}`);
+      updates.push(`"tecnologias_frontend" = $${idx++}`);
       values.push(validated.frontendTech);
     }
     if (validated.backendTech !== undefined) {
-      updates.push(`"backendTech" = $${idx++}`);
+      updates.push(`"tecnologias_backend" = $${idx++}`);
       values.push(validated.backendTech);
     }
     if (validated.databaseTech !== undefined) {
-      updates.push(`"databaseTech" = $${idx++}`);
+      updates.push(`"tecnologias_banco" = $${idx++}`);
       values.push(validated.databaseTech);
     }
     if (
@@ -187,28 +187,28 @@ export async function updateTask(req: Request, res: Response, next: NextFunction
           ...(validated.databaseTech || []),
         ])
       );
-      updates.push(`"technologies" = $${idx++}`);
+      updates.push(`"tecnologias" = $${idx++}`);
       values.push(combined);
     }
     if (validated.columnId !== undefined) {
-      updates.push(`"columnId" = $${idx++}`);
+      updates.push(`"coluna_id" = $${idx++}`);
       values.push(validated.columnId || null);
     }
     if (validated.order !== undefined) {
-      updates.push(`"order" = $${idx++}`);
+      updates.push(`"ordem" = $${idx++}`);
       values.push(validated.order);
     }
 
     await prisma.$executeRawUnsafe(
-      `UPDATE "Task" SET ${updates.join(", ")} WHERE "id" = $1;`,
+      `UPDATE "tarefas" SET ${updates.join(", ")} WHERE "id" = $1;`,
       ...values
     );
 
     if (validated.projectIds && validated.projectIds.length > 0) {
-      await prisma.$executeRawUnsafe(`DELETE FROM "_ProjectToTask" WHERE "B" = $1;`, validated.id);
+      await prisma.$executeRawUnsafe(`DELETE FROM "_projetos_tarefas" WHERE "B" = $1;`, validated.id);
       for (const pId of validated.projectIds) {
         await prisma.$executeRawUnsafe(
-          `INSERT INTO "_ProjectToTask" ("A", "B") VALUES ($1, $2) ON CONFLICT DO NOTHING;`,
+          `INSERT INTO "_projetos_tarefas" ("A", "B") VALUES ($1, $2) ON CONFLICT DO NOTHING;`,
           pId,
           validated.id
         );
@@ -230,9 +230,9 @@ export async function deleteTask(req: Request, res: Response, next: NextFunction
     }
 
     const taskId = String(id);
-    await prisma.$executeRawUnsafe(`DELETE FROM "_ProjectToTask" WHERE "B" = $1;`, taskId);
-    await prisma.$executeRawUnsafe(`DELETE FROM "TimeEntry" WHERE "taskId" = $1;`, taskId);
-    await prisma.$executeRawUnsafe(`DELETE FROM "Task" WHERE "id" = $1;`, taskId);
+    await prisma.$executeRawUnsafe(`DELETE FROM "_projetos_tarefas" WHERE "B" = $1;`, taskId);
+    await prisma.$executeRawUnsafe(`DELETE FROM "apontamentos_horas" WHERE "tarefa_id" = $1;`, taskId);
+    await prisma.$executeRawUnsafe(`DELETE FROM "tarefas" WHERE "id" = $1;`, taskId);
 
     res.json({ success: true, data: null });
   } catch (error) {
@@ -246,7 +246,7 @@ export async function updateTaskOrderAndStatus(req: Request, res: Response, next
     const { taskId, columnId, newStatus, newOrder, orderedTaskIdsInColumn } = validated;
 
     await prisma.$executeRawUnsafe(
-      `UPDATE "Task" SET "status" = $1, "columnId" = $2, "order" = $3, "updatedAt" = NOW() WHERE "id" = $4;`,
+      `UPDATE "tarefas" SET "status" = $1, "coluna_id" = $2, "ordem" = $3, "atualizado_em" = NOW() WHERE "id" = $4;`,
       newStatus,
       columnId || null,
       newOrder,
@@ -256,7 +256,7 @@ export async function updateTaskOrderAndStatus(req: Request, res: Response, next
     for (let i = 0; i < orderedTaskIdsInColumn.length; i++) {
       const id = orderedTaskIdsInColumn[i];
       await prisma.$executeRawUnsafe(
-        `UPDATE "Task" SET "order" = $1, "status" = $2, "columnId" = $3, "updatedAt" = NOW() WHERE "id" = $4;`,
+        `UPDATE "tarefas" SET "ordem" = $1, "status" = $2, "coluna_id" = $3, "atualizado_em" = NOW() WHERE "id" = $4;`,
         i,
         newStatus,
         columnId || null,

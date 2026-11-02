@@ -1,11 +1,9 @@
+import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-import dotenv from "dotenv";
 import { apiRouter } from "./routes/index.js";
 import { errorHandler } from "./middlewares/error.middleware.js";
-
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -51,6 +49,7 @@ app.listen(PORT, () => {
   console.log(`🚀 DevTask Backend API rodando com sucesso!`);
   console.log(`🌐 URL: http://localhost:${PORT}`);
   console.log(`📡 Health Check: http://localhost:${PORT}/api/health`);
+  console.log(`🗄️ DB URL: ${process.env.DATABASE_URL}`);
   console.log(`==============================================\n`);
 });
 
